@@ -37,9 +37,8 @@ lemma fourierIntegral_deriv_aux2 (e : ℝ →ᵇ ℂ) {f : ℝ → ℂ} (hf : In
   simp [fourierIntegral_eq, integral_neg]
 
 @[simp] lemma F_add {f g : ℝ → ℂ} (hf : Integrable f) (hg : Integrable g) (x : ℝ) :
-    𝓕 (fun x => f x + g x) x = 𝓕 f x + 𝓕 g x := by
-  sorry
-  -- congr_fun (fourierIntegral_add continuous_fourierChar (by exact continuous_mul) hf hg).symm x
+    𝓕 (fun x => f x + g x) x = 𝓕 f x + 𝓕 g x :=
+  congr_fun (fourierIntegral_add continuous_fourierChar continuous_mul hf hg) _
 
 @[simp] lemma F_sub {f g : ℝ → ℂ} (hf : Integrable f) (hg : Integrable g) (x : ℝ) :
     𝓕 (fun x => f x - g x) x = 𝓕 f x - 𝓕 g x := by
