@@ -31,11 +31,11 @@ Lastly, calls a normalization tactic on this target.
 
 -/
 
-set_option autoImplicit true
-
 namespace Mathlib.Tactic.LinearCombination
 open Lean hiding Rat
 open Elab Meta Term
+
+variable {α β : Type*}
 
 theorem pf_smul_c [SMul α β] {a b : α} (p : a = b) (c : β) : a • c = b • c := p ▸ rfl
 theorem c_smul_pf [SMul α β] {b c : β} (p : b = c) (a : α) : a • b = a • c := p ▸ rfl
@@ -51,54 +51,60 @@ using `+`/`-`/`*`/`/` on equations and values.
 * `none` means that the input expression is not an equation but a value;
   the input syntax itself is used in this case.
 -/
-partial def expandAdditiveCombo (stx : Syntax.Term) : TermElabM (Option Syntax.Term) := do
-  let mut result ← match stx with
-  | `(($e)) => expandLinearCombo e
+partial def expandAdditiveCombo (ty : Expr) (stx : Syntax.Term) : TermElabM Expanded := withRef stx do
+  match stx with
+  | `(($e)) => expandLinearCombo ty e
   | `($e₁ + $e₂) => do
-    match ← expandAdditiveCombo e₁, ← expandAdditiveCombo e₂ with
-    | none, none => pure none
-    | some p₁, none => ``(pf_add_c $p₁ $e₂)
-    | none, some p₂ => ``(c_add_pf $p₂ $e₁)
-    | some p₁, some p₂ => ``(add_pf $p₁ $p₂)
+    match ← expandAdditiveCombo ty e₁, ← expandAdditiveCombo ty e₂ with
+    | .const c₁, .const c₂ => .const <$> ``($c₁ + $c₂)
+    | .proof p₁, .const c₂ => .proof <$> ``(pf_add_c $p₁ $c₂)
+    | .const c₁, .proof p₂ => .proof <$> ``(c_add_pf $p₂ $c₁)
+    | .proof p₁, .proof p₂ => .proof <$> ``(add_pf $p₁ $p₂)
   | `($e₁ - $e₂) => do
-    match ← expandAdditiveCombo e₁, ← expandAdditiveCombo e₂ with
-    | none, none => pure none
-    | some p₁, none => ``(pf_sub_c $p₁ $e₂)
-    | none, some p₂ => ``(c_sub_pf $p₂ $e₁)
-    | some p₁, some p₂ => ``(sub_pf $p₁ $p₂)
+    match ← expandAdditiveCombo ty e₁, ← expandAdditiveCombo ty e₂ with
+    | .const c₁, .const c₂ => .const <$> ``($c₁ - $c₂)
+    | .proof p₁, .const c₂ => .proof <$> ``(pf_sub_c $p₁ $c₂)
+    | .const c₁, .proof p₂ => .proof <$> ``(c_sub_pf $p₂ $c₁)
+    | .proof p₁, .proof p₂ => .proof <$> ``(sub_pf $p₁ $p₂)
   | `(-$e) => do
-    match ← expandAdditiveCombo e with
-    | none => pure none
-    | some p => ``(neg_pf $p)
+    match ← expandAdditiveCombo ty e with
+    | .const c => .const <$> `(-$c)
+    | .proof p => .proof <$> ``(neg_pf $p)
   | `(← $e) => do
-    match ← expandAdditiveCombo e with
-    | none => pure none
-    | some p => ``(Eq.symm $p)
+    match ← expandAdditiveCombo ty e with
+    | .const c => return .const c
+    | .proof p => .proof <$> ``(Eq.symm $p)
   | `($e₁ • $e₂) => do
-    match ← expandAdditiveCombo e₁, ← expandAdditiveCombo e₂ with
-    | none, none => pure none
-    | some p₁, none => ``(pf_smul_c $p₁ $e₂)
-    | none, some p₂ => ``(c_smul_pf $p₂ $e₁)
-    | some p₁, some p₂ => ``(smul_pf $p₁ $p₂)
-  | e => do
-    let e ← elabTerm e none
-    let eType ← inferType e
-    let .true := (← withReducible do whnf eType).isEq | pure none
-    some <$> e.toSyntax
-  return result.map fun r => ⟨r.raw.setInfo (SourceInfo.fromRef stx true)⟩
+    match ← expandAdditiveCombo ty e₁, ← expandAdditiveCombo ty e₂ with
+    | .const c₁, .const c₂ => .const <$> ``($c₁ • $c₂)
+    | .proof p₁, .const c₂ => .proof <$> ``(pf_smul_c $p₁ $c₂)
+    | .const c₁, .proof p₂ => .proof <$> ``(c_smul_pf $p₂ $c₁)
+    | .proof p₁, .proof p₂ => .proof <$> ``(smul_pf $p₁ $p₂)
+  | e =>
+    -- We have the expected type from the goal, so we can fully synthesize this leaf node.
+    withSynthesize do
+      -- It is OK to use `ty` as the expected type even if `e` is a proof.
+      -- The expected type is just a hint.
+      let c ← withSynthesizeLight <| Term.elabTerm e ty
+      if (← whnfR (← inferType c)).isEq then
+        .proof <$> c.toSyntax
+      else
+        .const <$> c.toSyntax
 
 /-- Implementation of `additive_combination` and `additive_combination2`. -/
-def elabAdditiveCombination
+def elabAdditiveCombination (tk : Syntax)
     (norm? : Option Syntax.Tactic) (exp? : Option Syntax.NumLit) (input : Option Syntax.Term)
     (twoGoals := false) : Tactic.TacticM Unit := Tactic.withMainContext do
+  let some (ty, _) := (← (← Tactic.getMainGoal).getType').eq? |
+    throwError "'additive_combination' only proves equalities"
   let p ← match input with
   | none => `(Eq.refl 0)
-  | some e => withSynthesize do
-    match ← expandAdditiveCombo e with
-    | none => `(Eq.refl $e)
-    | some p => pure p
-  let norm := norm?.getD (Unhygienic.run `(tactic| ((try simp only [smul_add, smul_sub]); abel)))
-  Tactic.evalTactic <| ← withFreshMacroScope <|
+  | some e =>
+    match ← expandAdditiveCombo ty e with
+    | .const c => `(Eq.refl $c)
+    | .proof p => pure p
+  let norm := norm?.getD (Unhygienic.run <| withRef tk `(tactic| ((try simp only [smul_add, smul_sub]); abel)))
+  Term.withoutErrToSorry <| Tactic.evalTactic <| ← withFreshMacroScope <|
   if twoGoals then
     `(tactic| (
       refine eq_trans₃ $p ?a ?b
@@ -174,5 +180,5 @@ example (a b : ℚ) (h : ∀ p q : ℚ, p = q) : 3*a + qc = 3*b + 2*qc := by
 syntax (name := AdditiveCombination) "additive_combination"
   (normStx)? (expStx)? (ppSpace colGt term)? : tactic
 elab_rules : tactic
-  | `(tactic| additive_combination $[(norm := $tac)]? $[(exp := $n)]? $(e)?) =>
-    elabAdditiveCombination tac n e
+  | `(tactic| additive_combination%$tk $[(norm := $tac)]? $[(exp := $n)]? $(e)?) =>
+    elabAdditiveCombination tk tac n e
