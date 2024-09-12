@@ -21,6 +21,8 @@ This file defines the finite set of `d`-tuples of natural numbers with a fixed p
 See PR #10668
 -/
 
+set_option lang.lemmaCmd true
+
 open Finset
 open scoped BigOperators ArithmeticFunction
 

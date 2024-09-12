@@ -20,6 +20,8 @@ import PrimeNumberTheoremAnd.BrunTitchmarsh
 import PrimeNumberTheoremAnd.Mathlib.Analysis.Asymptotics.Asymptotics
 import PrimeNumberTheoremAnd.Mathlib.Topology.UniformSpace.UniformConvergence
 
+set_option lang.lemmaCmd true
+
 -- note: the opening of ArithmeticFunction introduces a notation σ that seems
 -- impossible to hide, and hence parameters that are traditionally called σ will
 -- have to be called σ' instead in this file.
@@ -133,7 +135,7 @@ lemma first_fourier_aux2 (hx : 0 < x) (n : ℕ) :
       have : ((↑n : ℂ) ^ (σ' : ℂ) : ℂ) = ((↑n : ℝ) ^ (σ' : ℝ) : ℝ) := by
         rw [Complex.cpow_def_of_ne_zero (by simp [hn]), Real.rpow_def_of_nonneg (Nat.cast_nonneg n)]
         simp [hn]
-      simp [Real.fourierChar, expMapCircle, smul_eq_mul, mul_assoc, this] ; ring
+      simp [Real.fourierChar, Circle.exp, smul_eq_mul, mul_assoc, this] ; ring
     _ = (f n * (x ^ (y * I) / n ^ (σ' + y * I))) • ψ y := by
       congr 2
       have l1 : 0 < (n : ℝ) := by simpa using Nat.pos_iff_ne_zero.mpr hn
