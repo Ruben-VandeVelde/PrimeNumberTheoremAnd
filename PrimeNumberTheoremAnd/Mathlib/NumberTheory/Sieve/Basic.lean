@@ -9,6 +9,7 @@ import Mathlib.Algebra.BigOperators.Ring.Finset
 import Mathlib.Analysis.Asymptotics.Lemmas
 import Mathlib.NumberTheory.ArithmeticFunction
 import Mathlib.NumberTheory.SelbergSieve
+import PrimeNumberTheoremAnd.Mathlib.Data.Nat.GCD.Basic
 import PrimeNumberTheoremAnd.Mathlib.NumberTheory.Sieve.AuxResults
 
 noncomputable section
@@ -246,12 +247,8 @@ theorem lambdaSquared_mainSum_eq_quad_form (w : ℕ → ℝ) :
   rw [sum_comm, sum_congr rfl]; intro d2 hd2
   have h : d1.lcm d2 ∣ P := Nat.lcm_dvd_iff.mpr ⟨dvd_of_mem_divisors hd1, dvd_of_mem_divisors hd2⟩
   rw [←sum_intro (divisors P) (d1.lcm d2) (mem_divisors.mpr ⟨h, prodPrimes_ne_zero⟩ )]
-  rw [s.nu_mult.map_lcm]
+  rw [s.nu_mult.map_lcm <| nu_ne_zero <| gcd_dvd_lcm.trans h]
   ring
-  refine _root_.ne_of_gt (nu_pos_of_dvd_prodPrimes ?_)
-  trans d1
-  · exact Nat.gcd_dvd_left d1 d2
-  · exact dvd_of_mem_divisors hd1
 
 theorem lambdaSquared_mainSum_eq_diag_quad_form  (w : ℕ → ℝ) :
     mainSum (lambdaSquared w) =
