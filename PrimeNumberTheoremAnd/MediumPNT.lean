@@ -3567,10 +3567,15 @@ theorem I3Bound {SmoothingF : ℝ → ℝ}
     rw [← Set.neg_mem_Ioo_iff, mem_Ioo] at ht
     rwa [this]
 
-  have logt9gt1_bounds : ∀ t, 3 < |t| ∧ |t| < T → Real.log |t| ^ 9 > 1 := by
+  have logt9gt1_bounds : ∀ t, t ∈ Set.Icc (-T) (-3) → Real.log |t| ^ 9 > 1 := by
     intro t ht
-    refine one_lt_pow₀ (logt_gt_one ht.1.le) ?_
-    linarith
+    refine one_lt_pow₀ (logt_gt_one ?_) ?_
+    · have : |t| = -t := by
+        refine abs_of_neg ?_
+        exact ht.2.trans_lt (by norm_num)
+      rw [this, le_neg]
+      exact ht.2
+    · norm_num
 
   have Aoverlogt9gtAoverlogT9_bounds : ∀ t, 3 < |t| ∧ |t| < T →
         A / Real.log |t| ^ 9 > A / Real.log T ^ 9 := by
@@ -3604,25 +3609,17 @@ theorem I3Bound {SmoothingF : ℝ → ℝ}
     unfold σ₁
     linarith[AoverlogT9in0half.2]
 
-  have quotient_bound : ∀ t, 3 < |t| ∧ |t| < T → Real.log |t| ^ 9 / (σ₁ ^ 2 + t ^ 2) ≤ Real.log |t| ^ 9 / t ^ 2  := by
+  have quotient_bound : ∀ t ∈ Ioo (-T) (-3), Real.log |t| ^ 9 / (σ₁ ^ 2 + t ^ 2) ≤ Real.log |t| ^ 9 / t ^ 2  := by
     intro t ht
-    have loght := logt9gt1_bounds t ht
+    have loght := logt9gt1_bounds t (Ioo_subset_Icc_self ht)
     have logpos : Real.log |t| ^ 9 > 0 := zero_lt_one.trans loght
     have denom_le : t ^ 2 ≤ σ₁ ^ 2 + t ^ 2 := (le_add_iff_nonneg_left _).mpr <| sq_nonneg σ₁
     have denom_pos : 0 < t ^ 2 := by
-      rw [← sq_abs]
-      exact sq_pos_of_pos (zero_lt_three.trans ht.1)
+      apply sq_pos_of_ne_zero
+      rintro rfl
+      norm_num [mem_Ioo] at ht
     have denom2_pos : 0 < σ₁ ^ 2 + t ^ 2 := add_pos_of_nonneg_of_pos (sq_nonneg _) denom_pos
     exact (div_le_div_iff_of_pos_left logpos denom2_pos denom_pos).mpr denom_le
-
-  have : ∫ (t : ℝ) in -T..-3,
-          -ζ' (↑σ₁ + ↑t * I) / ζ (↑σ₁ + ↑t * I) * 𝓜 (fun x ↦ ↑(Smooth1 SmoothingF ε x)) (↑σ₁ + ↑t * I) *
-            ↑X ^ (↑σ₁ + ↑t * I) = ∫ (t : ℝ) in Ioo (-T : ℝ) (-3 : ℝ),
-          -ζ' (↑σ₁ + ↑t * I) / ζ (↑σ₁ + ↑t * I) * 𝓜 (fun x ↦ ↑(Smooth1 SmoothingF ε x)) (↑σ₁ + ↑t * I) *
-            ↑X ^ (↑σ₁ + ↑t * I) := by
-    rw [intervalIntegral.integral_of_le Tgt3'.le]
-    exact MeasureTheory.integral_Ioc_eq_integral_Ioo
-  rw[this]
 
   have MellinBound : ∀ (t : ℝ) , ‖𝓜 (fun x ↦ (Smooth1 SmoothingF ε x : ℂ)) (σ₁ + t * I)‖ ≤ CM * (ε * ‖(σ₁ + t * I)‖ ^ 2)⁻¹ := by
     intro t
@@ -3642,9 +3639,8 @@ theorem I3Bound {SmoothingF : ℝ → ℝ}
 
   let g t := Cζ * CM * Real.log |t| ^ 9 / (ε * ‖↑σ₁ + ↑t * I‖ ^ 2) * X ^ σ₁
 
-  have bound_integral : ∀ (t : ℝ), 3  < |t| ∧ |t| < T → ‖f t‖ ≤ g t := by
-    intro t
-    rintro ⟨ht_gt3, ht_ltT⟩
+  have bound_integral : ∀ t ∈ Ioo (-T) (-3), ‖f t‖ ≤ g t := by
+    intro t ht
     unfold f
 
     have : ‖(-ζ' (↑σ₁ + ↑t * I) / ζ (↑σ₁ + ↑t * I)) *
@@ -3660,6 +3656,7 @@ theorem I3Bound {SmoothingF : ℝ → ℝ}
             (CM * (ε * ‖↑σ₁ + ↑t * I‖ ^ 2)⁻¹) * X ^ σ₁:= by
       have Xσ_bound : ‖↑(X : ℂ) ^ (↑σ₁ + ↑t * I)‖ = X ^ σ₁ := by
         simp [norm_cpow_eq_rpow_re_of_pos Xpos]
+      obtain ⟨ht_gt3, ht_ltT⟩ := t_bounds _ ht
       have logtgt1 : 1 < Real.log |t| := logt_gt_one ht_gt3.le
       have hζ := logzetabnd t ⟨ht_gt3, ht_ltT⟩
       have h𝓜 := MellinBound t
@@ -3672,18 +3669,18 @@ theorem I3Bound {SmoothingF : ℝ → ℝ}
     linarith
 
   have int_with_f :
-      ∫ (t : ℝ) in Ioo (-T) (-3),
+      ∫ (t : ℝ) in (-T)..(-3),
         -ζ' (↑σ₁ + ↑t * I) / ζ (↑σ₁ + ↑t * I) *
           𝓜 (fun x ↦ ↑(Smooth1 SmoothingF ε x)) (↑σ₁ + ↑t * I) *
           ↑X ^ (↑σ₁ + ↑t * I) =
-      ∫ (t : ℝ) in Ioo (-T) (-3), f t := by
+      ∫ (t : ℝ) in (-T)..(-3), f t := by
     simp only [f]
   rw[int_with_f]
 
   apply (norm_mul_le _ _).trans
   rw [Complex.norm_mul, Complex.norm_I, one_mul]
 
-  have : ‖1 / (2 * ↑π * I)‖ * ‖∫ (t : ℝ) in Ioo (-T) (-3), f ↑t‖ ≤  ‖∫ (t : ℝ) in Ioo (-T) (-3), f ↑t‖ := by
+  have : ‖1 / (2 * ↑π * I)‖ * ‖∫ (t : ℝ) in (-T)..(-3), f ↑t‖ ≤ ‖∫ (t : ℝ) in (-T)..(-3), f ↑t‖ := by
     apply mul_le_of_le_one_left
     · apply norm_nonneg
     · simp only [one_div, norm_inv]
@@ -3694,18 +3691,18 @@ theorem I3Bound {SmoothingF : ℝ → ℝ}
       exact le_trans (by norm_num) pi_gt_three.le
   apply le_trans this
 
-  apply le_trans (norm_integral_le_integral_norm _)
+  apply le_trans (intervalIntegral.norm_integral_le_integral_norm Tgt3'.le)
 
-  have cont1 : ContinuousOn (fun t ↦ Real.log |t| ^ 9) (Icc (-T) (-3)) := by
-    refine ContinuousOn.pow ?_ 9
-    refine ContinuousOn.log ?_ ?_
-    · exact _root_.continuous_abs.continuousOn
-    · intro t ht
-      rw [abs_ne_zero]
-      rintro rfl
-      norm_num [mem_Icc] at ht
+  have abs_ne_zero_of_mem_uIcc (x) (hx : x ∈ uIcc (-T) (-3)) : |x| ≠ 0 := by
+    rw [abs_ne_zero]
+    rintro rfl
+    norm_num [mem_uIcc] at hx
+    linarith
 
-  have g_cont : ContinuousOn g (Icc (-T) (-3)) := by
+  have cont1 : ContinuousOn (fun t ↦ Real.log |t| ^ 9) (uIcc (-T) (-3)) :=
+    _root_.continuous_abs.continuousOn.log abs_ne_zero_of_mem_uIcc |>.pow 9
+
+  have g_cont : ContinuousOn g (uIcc (-T) (-3)) := by
     unfold g
     refine .mul ?_ continuousOn_const
     refine ContinuousOn.div ?_ ?_ ?_
@@ -3716,31 +3713,17 @@ theorem I3Bound {SmoothingF : ℝ → ℝ}
       have : 0 < σ₁ ^ 2 + x ^ 2 := add_pos_of_pos_of_nonneg (sq_pos_of_pos σ₁pos) (sq_nonneg x)
       simp only [Complex.sq_norm, normSq_add_mul_I, ne_eq, this.ne', not_false_eq_true]
 
-  have int_normf_le_int_g: ∫ (t : ℝ) in Ioo (-T) (-3), ‖f ↑t‖
-                        ≤ ∫ (t : ℝ) in Ioo (-T) (-3), g ↑t := by
+  have int_normf_le_int_g: ∫ (t : ℝ) in (-T)..(-3), ‖f ↑t‖
+                        ≤ ∫ (t : ℝ) in (-T)..(-3), g ↑t := by
     by_cases h_int : IntervalIntegrable (fun t : ℝ ↦ ‖f t‖) volume (-T) (-3)
-    · have f_int : IntegrableOn (fun (t : ℝ) ↦ ‖f t‖) (Ioo (-T : ℝ) (-3 : ℝ)) volume := by
-        have hle : -T ≤ -3 := by linarith
-        exact (intervalIntegrable_iff_integrableOn_Ioo_of_le hle).mp h_int
-      apply MeasureTheory.setIntegral_mono_on
-      · exact f_int
-      · exact g_cont.integrableOn_Icc.mono_set Ioo_subset_Icc_self
-      · exact measurableSet_Ioo
+    · exact intervalIntegral.integral_mono_on_of_le_Ioo
+        Tgt3'.le h_int g_cont.intervalIntegrable bound_integral
+    · rw [intervalIntegral.integral_undef h_int]
+      apply intervalIntegral.integral_nonneg Tgt3'.le
       intro t ht
-      exact bound_integral t (t_bounds t ht)
-    · have : ∫ (t : ℝ) in -T..-3, ‖f ↑ t‖ = ∫ (t : ℝ) in Ioo (-T) (-3), ‖f ↑t‖  := by
-        rw [intervalIntegral.integral_of_le Tgt3'.le]
-        exact MeasureTheory.integral_Ioc_eq_integral_Ioo
-      have : ∫ (t : ℝ) in Ioo (-T) (-3), ‖f ↑t‖ = 0 := by
-        rw [← this]
-        exact intervalIntegral.integral_undef h_int
-      rw [this]
-      apply MeasureTheory.setIntegral_nonneg
-      · exact measurableSet_Ioo
-      · intro t ht
-        unfold g
-        have := logt9gt1_bounds t (t_bounds _ ht)
-        positivity
+      unfold g
+      have := logt9gt1_bounds t ht
+      positivity
 
   apply le_trans int_normf_le_int_g
   unfold g
@@ -3752,88 +3735,66 @@ theorem I3Bound {SmoothingF : ℝ → ℝ}
 
   rw[this]
 
-  have Bound_of_log_int: ∫ (t : ℝ) in Ioo (-T) (-3), Real.log |t| ^ 9 / (ε * ‖↑σ₁ + ↑t * I‖ ^ 2) ≤ Cint / ε := by
-    have : ∫ (t : ℝ) in Ioo (-T) (-3), Real.log |t| ^ 9 / (ε * ‖↑σ₁ + ↑t * I‖ ^ 2)
-        = (1 / ε) * ∫ t in Ioo (-T) (-3), Real.log |t| ^ 9 / ‖↑σ₁ + ↑t * I‖ ^ 2 := by
-      rw [← integral_const_mul]
+  have Bound_of_log_int: ∫ (t : ℝ) in (-T)..(-3), Real.log |t| ^ 9 / (ε * ‖↑σ₁ + ↑t * I‖ ^ 2) ≤ Cint / ε := by
+    have : ∫ (t : ℝ) in (-T)..(-3), Real.log |t| ^ 9 / (ε * ‖↑σ₁ + ↑t * I‖ ^ 2)
+        = (1 / ε) * ∫ t in (-T)..(-3), Real.log |t| ^ 9 / ‖↑σ₁ + ↑t * I‖ ^ 2 := by
+      rw [← intervalIntegral.integral_const_mul]
       congr with t
       field_simp [εgt0]
     rw[this]
 
-    have bound : ∫ t in Ioo (-T) (-3), Real.log |t| ^ 9 / ‖↑σ₁ + ↑t * I‖ ^ 2 ≤ Cint := by
+    have bound : ∫ t in (-T)..(-3), Real.log |t| ^ 9 / ‖↑σ₁ + ↑t * I‖ ^ 2 ≤ Cint := by
       simp_rw [Complex.sq_norm, normSq_add_mul_I]
 
-      have : ∫ t in Ioo (-T) (-3), Real.log |t| ^ 9 / (σ₁ ^ 2 + t ^ 2)
-            ≤ ∫ t in Ioo (-T) (-3), Real.log |t| ^ 9 /  t ^ 2 := by
-        refine setIntegral_mono_on ?_ ?_ ?_ ?_
-        · have cont : ContinuousOn (fun t ↦ Real.log |t| ^ 9 / (σ₁ ^ 2 + t ^ 2)) (Set.Icc (-T) (-3)) := by
+      have : ∫ t in (-T)..(-3), Real.log |t| ^ 9 / (σ₁ ^ 2 + t ^ 2)
+            ≤ ∫ t in (-T)..(-3), Real.log |t| ^ 9 /  t ^ 2 := by
+        refine intervalIntegral.integral_mono_on_of_le_Ioo Tgt3'.le ?_ ?_ ?_
+        · have cont : ContinuousOn (fun t ↦ Real.log |t| ^ 9 / (σ₁ ^ 2 + t ^ 2)) (Set.uIcc (-T) (-3)) := by
             refine ContinuousOn.div cont1 ?_ ?_
             · refine ContinuousOn.add ?_ ?_
               · exact continuousOn_const
               · refine ContinuousOn.pow ?_ 2
-                exact continuousOn_id' (Icc (-T) (-3))
+                exact continuousOn_id' _
             · intro t ht
-              have h2 : t ≠ 0 := by linarith [ht.2]
+              have h2 := abs_ne_zero_of_mem_uIcc t ht
+              rw [abs_ne_zero] at h2 --XXX
               have h3 : 0 < t ^ 2 := pow_two_pos_of_ne_zero h2
               have h4 : 0 < σ₁ ^ 2 := sq_pos_of_pos σ₁pos
               exact (add_pos_of_pos_of_nonneg h4 h3.le).ne'
-          exact cont.integrableOn_Icc.mono_set Ioo_subset_Icc_self
-        · have cont : ContinuousOn (fun t ↦ Real.log |t| ^ 9 / t ^ 2) (Set.Icc (-T) (-3)) := by
+          apply cont.intervalIntegrable
+        · have cont : ContinuousOn (fun t ↦ Real.log |t| ^ 9 / t ^ 2) (Set.uIcc (-T) (-3)) := by
             refine ContinuousOn.div cont1 ?_ ?_
             · refine ContinuousOn.pow ?_ 2
-              exact continuousOn_id' (Icc (-T) (-3))
+              exact continuousOn_id' _
             · intro t ht
-              have tne0 : t ≠ 0 := by linarith [ht.2]
+              have tne0 := abs_ne_zero_of_mem_uIcc t ht
+              rw [abs_ne_zero] at tne0 --XXX
               exact pow_ne_zero 2 tne0
-          have int_Icc : IntegrableOn (fun t ↦ Real.log |t| ^ 9 / t ^ 2) (Icc (-T) (-3)) volume := by
-            exact ContinuousOn.integrableOn_Icc cont
-          have int_Ioo : IntegrableOn (fun t ↦ Real.log |t| ^ 9 / t ^ 2) (Ioo (-T) (-3)) volume := by
-            apply MeasureTheory.IntegrableOn.mono_set int_Icc
-            exact Ioo_subset_Icc_self
-          exact int_Ioo
-        · exact measurableSet_Ioo
+          apply cont.intervalIntegrable
         · intro x hx
-          exact quotient_bound x (t_bounds x hx)
+          exact quotient_bound x hx
       apply le_trans this
-      have : ∫ (t : ℝ) in Ioo (-T) (-3), Real.log |t| ^ 9 / t ^ 2
-            = ∫ (t : ℝ) in Ioo 3 T, Real.log t ^ 9 / t ^ 2 := by
-        have : ∫ (t : ℝ) in Ioo (-T) (-3), Real.log |t| ^ 9 / t ^ 2
-              = ∫ (t : ℝ) in Ioo (-T) (-3), Real.log (-t) ^ 9 / (-t) ^ 2 := by
-          simp only [log_abs, neg_sq, log_neg_eq_log]
-        rw [this]
-
-        have interval_to_Ioo1 : ∫ (t : ℝ) in -T..-3, Real.log (-t) ^ 9 / (-t) ^ 2
-                        = ∫ (t : ℝ) in Ioo (-T) (-3), Real.log (-t) ^ 9 / (-t) ^ 2 := by
-          rw [intervalIntegral.integral_of_le Tgt3'.le]
-          exact MeasureTheory.integral_Ioc_eq_integral_Ioo
-
-        have interval_to_Ioo2 : ∫ (t : ℝ) in (3)..(T), Real.log t ^ 9 / t ^ 2
-                    = ∫ (t : ℝ) in Ioo 3 T, Real.log t ^ 9 / t ^ 2 := by
-          rw [intervalIntegral.integral_of_le Tgt3.le]
-          exact MeasureTheory.integral_Ioc_eq_integral_Ioo
-
-        rw [← interval_to_Ioo1, ← interval_to_Ioo2]
-        rw [intervalIntegral.integral_comp_neg (fun (t : ℝ) ↦ Real.log (t) ^ 9 / (t) ^ 2)]
-        simp
-      rw [this]
+      rw [← intervalIntegral.integral_comp_neg]
+      simp only [abs_neg, log_abs, even_two, Even.neg_pow]
+      rw [intervalIntegral.integral_of_le Tgt3.le, MeasureTheory.integral_Ioc_eq_integral_Ioo]
       exact (Cinthyp T Tgt3).le
     rw [mul_comm]
     rw [← mul_div_assoc, mul_one]
     exact (div_le_div_iff_of_pos_right εgt0).mpr bound
 
   have factor_out_constants :
-  ∫ (t : ℝ) in Ioo (-T) (-3), Cζ * CM * Real.log |t| ^ 9 / (ε * ‖↑σ₁ + ↑t * I‖ ^ 2) * (X * X ^ (-A / Real.log T ^ 9))
-  = Cζ * CM * (X * X ^ (-A / Real.log T ^ 9)) * ∫ (t : ℝ) in Ioo (-T) (-3), Real.log |t| ^ 9 / (ε * ‖↑σ₁ + ↑t * I‖ ^ 2) := by
+  ∫ (t : ℝ) in (-T)..(-3), Cζ * CM * Real.log |t| ^ 9 / (ε * ‖↑σ₁ + ↑t * I‖ ^ 2) * (X * X ^ (-A / Real.log T ^ 9))
+  = Cζ * CM * (X * X ^ (-A / Real.log T ^ 9)) * ∫ (t : ℝ) in (-T)..(-3), Real.log |t| ^ 9 / (ε * ‖↑σ₁ + ↑t * I‖ ^ 2) := by
      rw [mul_assoc, ← mul_assoc (Cζ * CM), ← mul_assoc]
      field_simp
-     rw [← integral_const_mul]
-     apply MeasureTheory.setIntegral_congr_fun measurableSet_Ioo
+     rw [← intervalIntegral.integral_const_mul]
+     apply intervalIntegral.integral_congr
      intro t ht
      ring
 
   rw [factor_out_constants]
 
-  have : Cζ * CM * (X * X ^ (-A / Real.log T ^ 9)) * ∫ (t : ℝ) in Ioo (-T) (-3), Real.log |t| ^ 9 / (ε * ‖↑σ₁ + ↑t * I‖ ^ 2)
+  have : Cζ * CM * (X * X ^ (-A / Real.log T ^ 9)) * ∫ (t : ℝ) in (-T)..(-3), Real.log |t| ^ 9 / (ε * ‖↑σ₁ + ↑t * I‖ ^ 2)
         ≤ Cζ * CM * ((X : ℝ) * X ^ (-A / Real.log T ^ 9)) * (Cint / ε) := by
     apply mul_le_mul_of_nonneg_left
     · exact Bound_of_log_int
