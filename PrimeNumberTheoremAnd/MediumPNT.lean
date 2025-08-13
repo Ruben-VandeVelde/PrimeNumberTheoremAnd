@@ -3631,8 +3631,9 @@ theorem I3Bound {SmoothingF : ℝ → ℝ}
     unfold σ₁
     linarith[AoverlogT9in0half.2]
 
-  have quotient_bound : ∀ t, 3 < |t| ∧ |t| < T → Real.log |t| ^ 9 / (σ₁ ^ 2 + t ^ 2) ≤ Real.log |t| ^ 9 / t ^ 2  := by
+  have quotient_bound : ∀ t ∈ Ioo (-T) (-3), Real.log |t| ^ 9 / (σ₁ ^ 2 + t ^ 2) ≤ Real.log |t| ^ 9 / t ^ 2  := by
     intro t ht
+    replace ht := t_bounds _ ht
     have loght := logt9gt1_bounds t ht
     have logpos : Real.log |t| ^ 9 > 0 := by linarith
     have denom_le : t ^ 2 ≤ σ₁ ^ 2 + t ^ 2 := by
@@ -3670,8 +3671,9 @@ theorem I3Bound {SmoothingF : ℝ → ℝ}
 
   let g t := Cζ * CM * Real.log |t| ^ 9 / (ε * ‖↑σ₁ + ↑t * I‖ ^ 2) * X ^ σ₁
 
-  have bound_integral : ∀ (t : ℝ), 3  < |t| ∧ |t| < T → ‖f t‖ ≤ g t := by
-    rintro t ⟨ht_gt3, ht_ltT⟩
+  have bound_integral : ∀ t ∈ Ioo (-T) (-3), ‖f t‖ ≤ g t := by
+    intro t ht
+    obtain ⟨ht_gt3, ht_ltT⟩ := t_bounds _ ht
     unfold f
     rw [neg_div, norm_mul, norm_mul, norm_neg]
     have :
@@ -3755,8 +3757,7 @@ theorem I3Bound {SmoothingF : ℝ → ℝ}
       · exact h_int
       · exact g_cont.intervalIntegrable
       intro t ht
-      apply bound_integral
-      apply t_bounds _ ht
+      exact bound_integral _ ht
     · have : ∫ (t : ℝ) in (-T)..(-3), ‖f ↑t‖ = 0 := by
         exact intervalIntegral.integral_undef h_int
       rw [this]
@@ -3838,7 +3839,7 @@ theorem I3Bound {SmoothingF : ℝ → ℝ}
               exact pow_ne_zero 2 tne0
           apply cont.intervalIntegrable
         · intro x hx
-          exact quotient_bound x (t_bounds x hx)
+          exact quotient_bound x hx
       apply le_trans this
       rw [← intervalIntegral.integral_comp_neg]
       simp only [abs_neg, log_abs, even_two, Even.neg_pow, f, σ₁]
