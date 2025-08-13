@@ -3670,11 +3670,6 @@ theorem I3Bound {SmoothingF : ℝ → ℝ}
 
   let g t := Cζ * CM * Real.log |t| ^ 9 / (ε * ‖↑σ₁ + ↑t * I‖ ^ 2) * X ^ σ₁
 
-  have norm_X_sigma1: ∀ (t : ℝ), ‖↑(X : ℂ) ^ (↑σ₁ + ↑t * I)‖ = X ^ σ₁ := by
-    intro t
-    simp only [norm_cpow_eq_rpow_re_of_pos Xpos, add_re, ofReal_re, mul_re, I_re, mul_zero,
-      ofReal_im, I_im, mul_one, sub_self, add_zero]
-
   have bound_integral : ∀ (t : ℝ), 3  < |t| ∧ |t| < T → ‖f t‖ ≤ g t := by
     rintro t ⟨ht_gt3, ht_ltT⟩
     unfold f
@@ -3800,16 +3795,13 @@ theorem I3Bound {SmoothingF : ℝ → ℝ}
       congr with t
       field_simp [εgt0]
     rw[this]
-    have normsquared : ∀ (t : ℝ), ‖↑σ₁ + ↑t * I‖ ^ 2 = σ₁ ^ 2 + t ^ 2 := by
-      intro t
-      simp only [Complex.sq_norm]
-      exact normSq_add_mul_I σ₁ t
 
     have bound : ∫ t in (-T)..(-3), Real.log |t| ^ 9 / ‖↑σ₁ + ↑t * I‖ ^ 2 ≤ Cint := by
-      have : ∫ t in (-T)..(-3), Real.log |t| ^ 9 / ‖↑σ₁ + ↑t * I‖ ^ 2
-            = ∫ t in (-T)..(-3), Real.log |t| ^ 9 / (σ₁ ^ 2 + t ^ 2) := by
-        simp_rw [normsquared]
-      rw [this]
+      have normsquared : ∀ (t : ℝ), ‖↑σ₁ + ↑t * I‖ ^ 2 = σ₁ ^ 2 + t ^ 2 := by
+        intro t
+        simp only [Complex.sq_norm]
+        exact normSq_add_mul_I σ₁ t
+      simp_rw [normsquared]
 
       have cont1 : ContinuousOn (fun t ↦ Real.log |t| ^ 9) (uIcc (-T) (-3)) := by
         refine ContinuousOn.pow ?_ 9
@@ -3831,7 +3823,7 @@ theorem I3Bound {SmoothingF : ℝ → ℝ}
                 exact continuousOn_id' _
             · intro t ht
               have h2 := abs_ne_zero_of_mem_uIcc t ht
-              rw [abs_ne_zero] at h2
+              rw [abs_ne_zero] at h2 --XXX
               have h3 : 0 < t ^ 2 := pow_two_pos_of_ne_zero h2
               have h4 : 0 < σ₁ ^ 2 := sq_pos_of_pos σ₁pos
               exact (add_pos_of_pos_of_nonneg h4 h3.le).ne'
@@ -3842,7 +3834,7 @@ theorem I3Bound {SmoothingF : ℝ → ℝ}
               exact continuousOn_id' _
             · intro t ht
               have tne0 := abs_ne_zero_of_mem_uIcc t ht
-              rw [abs_ne_zero] at tne0
+              rw [abs_ne_zero] at tne0 --XXX
               exact pow_ne_zero 2 tne0
           apply cont.intervalIntegrable
         · intro x hx
