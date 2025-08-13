@@ -3570,6 +3570,19 @@ private lemma Aoverlogt9gtAoverlogT9_bounds {A : ℝ} (hA : A ∈ Ioc 0 (1 / 2))
     have h3 : 0 ≤ Real.log |t| := zero_le_one.trans h2.le
     exact pow_lt_pow_left₀ h1 h3 h9
 
+-- Mathlib.MeasureTheory.Measure.Lebesgue.Integral
+lemma integral_comp_neg_Ioo
+    {E : Type*} [NormedAddCommGroup E] [NormedSpace ℝ E] (a b : ℝ) (f : ℝ → E) :
+    ∫ (x : ℝ) in Set.Ioo a b, f (-x) = ∫ (x : ℝ) in Set.Ioo (-b) (-a), f x := by
+  cases le_or_gt a b with
+  | inl hab =>
+    rw [← MeasureTheory.integral_Ioc_eq_integral_Ioo,
+      ← MeasureTheory.integral_Ioc_eq_integral_Ioo]
+    rw [← intervalIntegral.integral_of_le hab,
+      ← intervalIntegral.integral_of_le (by rw [neg_le_neg_iff]; exact hab),
+      ← intervalIntegral.integral_comp_neg]
+  | inr hab => simp [hab.le]
+
 theorem I3Bound {SmoothingF : ℝ → ℝ}
     (suppSmoothingF : Function.support SmoothingF ⊆ Icc (1 / 2) 2)
     (ContDiffSmoothingF : ContDiff ℝ 1 SmoothingF)
