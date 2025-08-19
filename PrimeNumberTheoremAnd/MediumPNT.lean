@@ -3536,6 +3536,39 @@ Same with $I_7$.
 \end{lemma}
 %%-/
 
+private lemma norm_1over2pii_le1 : ‖1 / (2 * ↑π * I)‖ ≤ 1 := by
+  simp only [one_div, norm_inv]
+  apply inv_le_one_of_one_le₀
+  simp only [Complex.norm_mul, Complex.norm_ofNat, norm_real, norm_eq_abs, pi_nonneg,
+    abs_of_nonneg, norm_I, mul_one]
+  apply one_le_mul_of_one_le_of_one_le one_le_two
+  exact le_trans (by norm_num) pi_gt_three.le
+
+private lemma AoverlogT9in0half {A : ℝ} (hA : A ∈ Ioc 0 (1 / 2)) {T : ℝ} (Tgt3 : 3 < T) :
+    A / Real.log T ^ 9 ∈ Ioo 0 (1/2) := by
+  have logT9gt1 : 1 < Real.log T ^ 9 := by
+    have logt_gt_one : 1 < Real.log T := logt_gt_one Tgt3.le
+    refine (one_lt_pow_iff_of_nonneg ?_ ?_).mpr logt_gt_one
+    · exact zero_le_one.trans logt_gt_one.le
+    · norm_num
+  have logT9pos := zero_lt_one.trans logT9gt1
+  constructor
+  · exact div_pos hA.1 logT9pos
+  · rw [div_lt_comm₀ logT9pos one_half_pos, div_lt_iff₀' one_half_pos]
+    apply hA.2.trans_lt
+    rwa [lt_mul_iff_one_lt_right one_half_pos]
+
+private lemma Aoverlogt9gtAoverlogT9_bounds {A : ℝ} (hA : A ∈ Ioc 0 (1 / 2))
+    {T : ℝ} {t : ℝ} (ht : 3 < |t| ∧ |t| < T) :
+    A / Real.log |t| ^ 9 > A / Real.log T ^ 9 := by
+  have h9 : 9 ≠ 0 := by norm_num
+  refine div_lt_div_of_pos_left hA.1 ?_ ?_
+  · exact zero_lt_one.trans <| one_lt_pow₀ (logt_gt_one ht.1.le) h9
+  · have h1 := log_lt_log (zero_lt_three.trans ht.1) ht.2
+    have h2 := logt_gt_one ht.1.le
+    have h3 : 0 ≤ Real.log |t| := zero_le_one.trans h2.le
+    exact pow_lt_pow_left₀ h1 h3 h9
+
 theorem I3Bound {SmoothingF : ℝ → ℝ}
     (suppSmoothingF : Function.support SmoothingF ⊆ Icc (1 / 2) 2)
     (ContDiffSmoothingF : ContDiff ℝ 1 SmoothingF)
@@ -3577,29 +3610,11 @@ theorem I3Bound {SmoothingF : ℝ → ℝ}
       exact ht.2
     · norm_num
 
-  have Aoverlogt9gtAoverlogT9_bounds : ∀ t, 3 < |t| ∧ |t| < T →
-        A / Real.log |t| ^ 9 > A / Real.log T ^ 9 := by
-    intro t ht
-    have h9 : 9 ≠ 0 := by norm_num
-    refine div_lt_div_of_pos_left hA.1 ?_ ?_
-    · exact zero_lt_one.trans <| one_lt_pow₀ (logt_gt_one ht.1.le) h9
-    · have h1 := log_lt_log (zero_lt_three.trans ht.1) ht.2
-      have h2 := logt_gt_one ht.1.le
-      have h3 : 0 ≤ Real.log |t| := zero_le_one.trans h2.le
-      exact pow_lt_pow_left₀ h1 h3 h9
+  have Aoverlogt9gtAoverlogT9_bounds (t) (ht : 3 < |t| ∧ |t| < T) :
+      A / Real.log |t| ^ 9 > A / Real.log T ^ 9 :=
+    Aoverlogt9gtAoverlogT9_bounds hA ht
 
-  have AoverlogT9in0half: A / Real.log T ^ 9 ∈ Ioo 0 (1/2) := by
-    have logT9gt1 : 1 < Real.log T ^ 9 := by
-      have logt_gt_one : 1 < Real.log T := logt_gt_one Tgt3.le
-      refine (one_lt_pow_iff_of_nonneg ?_ ?_).mpr logt_gt_one
-      · exact zero_le_one.trans logt_gt_one.le
-      · norm_num
-    have logT9pos := zero_lt_one.trans logT9gt1
-    constructor
-    · exact div_pos hA.1 logT9pos
-    · rw [div_lt_comm₀ logT9pos one_half_pos, div_lt_iff₀' one_half_pos]
-      apply hA.2.trans_lt
-      rwa [lt_mul_iff_one_lt_right one_half_pos]
+  have AoverlogT9in0half: A / Real.log T ^ 9 ∈ Ioo 0 (1/2) := AoverlogT9in0half hA Tgt3
 
   have σ₁lt1 : σ₁ < 1 := by
     unfold σ₁
@@ -3621,7 +3636,7 @@ theorem I3Bound {SmoothingF : ℝ → ℝ}
     have denom2_pos : 0 < σ₁ ^ 2 + t ^ 2 := add_pos_of_nonneg_of_pos (sq_nonneg _) denom_pos
     exact (div_le_div_iff_of_pos_left logpos denom2_pos denom_pos).mpr denom_le
 
-  have MellinBound : ∀ (t : ℝ) , ‖𝓜 (fun x ↦ (Smooth1 SmoothingF ε x : ℂ)) (σ₁ + t * I)‖ ≤ CM * (ε * ‖(σ₁ + t * I)‖ ^ 2)⁻¹ := by
+  have MellinBound : ∀ (t : ℝ), ‖𝓜 (fun x ↦ (Smooth1 SmoothingF ε x : ℂ)) (σ₁ + t * I)‖ ≤ CM * (ε * ‖σ₁ + t * I‖ ^ 2)⁻¹ := by
     intro t
     refine CMhyp σ₁ σ₁pos _ ?_ ?_ _ εgt0 εlt1 <;> simp [σ₁lt1.le.trans one_le_two]
 
@@ -3675,6 +3690,7 @@ theorem I3Bound {SmoothingF : ℝ → ℝ}
           ↑X ^ (↑σ₁ + ↑t * I) =
       ∫ (t : ℝ) in (-T)..(-3), f t := by
     simp only [f]
+
   rw[int_with_f]
 
   apply (norm_mul_le _ _).trans
@@ -3683,12 +3699,7 @@ theorem I3Bound {SmoothingF : ℝ → ℝ}
   have : ‖1 / (2 * ↑π * I)‖ * ‖∫ (t : ℝ) in (-T)..(-3), f ↑t‖ ≤ ‖∫ (t : ℝ) in (-T)..(-3), f ↑t‖ := by
     apply mul_le_of_le_one_left
     · apply norm_nonneg
-    · simp only [one_div, norm_inv]
-      apply inv_le_one_of_one_le₀
-      simp only [Complex.norm_mul, Complex.norm_ofNat, norm_real, norm_eq_abs, pi_nonneg,
-        abs_of_nonneg, norm_I, mul_one]
-      apply one_le_mul_of_one_le_of_one_le one_le_two
-      exact le_trans (by norm_num) pi_gt_three.le
+    · exact norm_1over2pii_le1
   apply le_trans this
 
   apply le_trans (intervalIntegral.norm_integral_le_integral_norm Tgt3'.le)
