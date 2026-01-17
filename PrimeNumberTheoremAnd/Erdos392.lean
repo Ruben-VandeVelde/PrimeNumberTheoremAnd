@@ -1114,6 +1114,35 @@ theorem Params.initial.balance_tiny_prime_ge (P : Params) {p : ℕ} (hp : p ≤ 
     P.initial.balance p ≥ - P.M * (Real.log P.n) - P.M * P.L^2 * (primeCounting P.n) := by
   sorry
 
+attribute [-simp] nat_floor_real_sqrt_eq_nat_sqrt in
+theorem Params.split_sum_primesBelow (P : Params) {f : ℕ → ℝ} :
+    ∑ p ∈ (P.n + 1).primesBelow, f p =
+      ∑ p ∈ Finset.filter (·.Prime) (Finset.Ioc (P.n / P.L) P.n), f p +
+      ∑ p ∈ Finset.filter (·.Prime) (Finset.Ioc ⌊(Real.sqrt P.n)⌋₊ (P.n / P.L)), f p +
+      ∑ p ∈ Finset.filter (·.Prime) (Finset.Ioc P.L ⌊(Real.sqrt P.n)⌋₊), f p +
+      ∑ p ∈ Finset.filter (·.Prime) (Finset.Iic P.L), f p := by
+  rw [← sum_union, ← sum_union, ← sum_union]
+  · refine Finset.sum_congr ?_ (fun _ _ => rfl)
+    simp only [primesBelow, ← Finset.filter_union, union_assoc]
+    congr
+    ext p
+    simp only [Finset.mem_range, Finset.mem_union, Finset.mem_Ioc, Finset.mem_Iic]
+    by_cases! hp1 : p ≤ P.L
+    · have := P.hL
+      simp only [hp1, or_true, iff_true, gt_iff_lt]
+      grw [hp1, Nat.le_mul_self P.L, P.hL]
+      exact Nat.lt_add_one (P.L * P.L)
+    by_cases hp2 : p ≤ ⌊√↑P.n⌋₊
+    · simp only [hp2.not_gt, false_and, hp1, hp2, and_self, true_or, or_true, iff_true]
+      grw [hp2]
+      rw [nat_floor_real_sqrt_eq_nat_sqrt]
+      grw [Nat.sqrt_le_self]
+      exact Nat.lt_add_one _
+    sorry
+  · sorry
+  · sorry
+  · sorry
+
 @[blueprint
   "initial-score-bound"
   (statement := /-- The initial score is bounded by
@@ -1134,7 +1163,29 @@ theorem Params.initial.score_bound (P : Params) :
       ∑ p ∈ Finset.filter (·.Prime) (Finset.Icc (P.n / P.L + 1) P.n),
         (P.n / p) * Real.log (P.n / p) +
       ∑ p ∈ Finset.filter (·.Prime) (Finset.Iic P.L),
-        (P.M * Real.log P.n + P.M * P.L^2 * primeCounting P.n) * Real.log P.L := by sorry
+        (P.M * Real.log P.n + P.M * P.L^2 * primeCounting P.n) * Real.log P.L := by
+  have h1 := Params.initial.waste P
+  have h2 := @Params.initial.balance_large_prime_le P
+  have h3 := @Params.initial.balance_large_prime_ge P
+  have h4 := @Params.initial.balance_medium_prime_le P
+  have h5 := @Params.initial.balance_medium_prime_ge P
+  have h6 := @Params.initial.balance_small_prime_le P
+  have h7 := @Params.initial.balance_small_prime_ge P
+  have h8 := @Params.initial.balance_tiny_prime_ge P
+  rw [Factorization.score]
+  grw [h1]
+  simp_rw [add_assoc]
+  gcongr 1
+  simp_rw [Factorization.total_imbalance]
+  have split_sum {f : ℕ → ℝ} :
+      ∑ p ∈ (P.n + 1).primesBelow, f p =
+        ∑ p ∈ (P.n + 1).primesBelow with p ≤ P.L, f p +
+        ∑ p ∈ (P.n + 1).primesBelow with P.L < p ∧ p ≤ Real.sqrt P.n, f p +
+        ∑ p ∈ (P.n + 1).primesBelow with Real.sqrt P.n < ((p : ℕ) : ℝ), f p +
+        ∑ p ∈ (P.n + 1).primesBelow with P.n / P.L < p, f p := by
+    sorry
+  -- grw [h2]
+  sorry
 
 @[blueprint
   "bound-score-1"
